@@ -2,7 +2,7 @@ extends GutTest
 ## F-002: autoloads are registered and Game's state machine / time scale work.
 
 const EXPECTED: PackedStringArray = [
-	"EventBus", "InputMapSetup", "Game", "Calendar", "Economy", "Roster", "Party",
+	"EventBus", "InputMapSetup", "Game", "DebugConsole", "Calendar", "Economy", "Roster", "Party",
 	"RunManager", "WorldStreamer", "ItemFactory", "LootService", "ShopManager",
 	"Market", "SaveManager", "AudioManager",
 ]

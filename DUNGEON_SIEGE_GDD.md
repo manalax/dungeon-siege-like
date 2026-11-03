@@ -245,6 +245,7 @@ res://
     resources/                # Resource class definitions (.gd)
     economy/                  # pure logic: haggle, customer draw, ledger, pricing
     input/                    # InputActions: single source of truth for input bindings
+    debug/                    # DebugCommandRegistry (console parsing/dispatch)
     util/
   data/
     classes/                  # *.tres ClassData
@@ -292,6 +293,7 @@ res://
 ### 3.2 Autoloads (singletons)
 | Name | Responsibility |
 |---|---|
+| `DebugConsole` | Dev console (`` ` ``) + stats overlay; command & overlay-row registry for all features; debug builds only |
 | `Game` | App state machine (`MENU, TOWN, SHOP_OPEN, RUN, PAUSED, GAME_OVER, ENDING`), time scale, tactical pause |
 | `EventBus` | Global signals (decoupled comms) |
 | `InputMapSetup` | Registers input actions at startup if missing |
@@ -412,22 +414,27 @@ Scope: Toggle with `` ` ``. Command registry; features register their own comman
 Acceptance:
 - [ ] Console opens/closes, parses commands with args, errors on unknown commands.
 - [ ] `DebugConsole.register(name, callable, help)` works from other features.
+Notes: Command signature is `func(args: PackedStringArray) -> String` (args are strings; commands parse their own). Overlay rows via `DebugConsole.set_overlay_row(key, func() -> String)`; F-062 owns "Chunks", F-082 owns "Day". Actors join group `actors` to be counted. Logic lives in `core/debug/command_registry.gd`.
 
 ### F-004 RNG & Utility Library
 Depends on: F-000
 Scope: `RNG` helper (seedable, `weighted_pick`, `roll_range`, `chance`), `MathUtil`, `NodeUtil`.
 Acceptance:
 - [ ] Unit tests: same seed → same sequence; weighted pick distribution sane.
+Notes: Each system owns an `RNG` instance or derives one (`root.derive("loot")`). Never call global `randi()`/`randf()`/`randi_range()` or `Array.shuffle()`; use the RNG methods (`RNG.shuffle()`). `chance()` always consumes one draw. `RNG.new(0)` picks a random seed (read it back from `seed_value`). Ranges are inclusive `Vector2i`/`Vector2` via `roll_range`/`roll_rangef`.
 
 ### F-005 Event Bus Contract
 Depends on: F-002
-Scope: Declare and document canonical signals:
-- Combat & party: `actor_died(actor, killer)`, `item_picked_up(actor, item)`, `member_leveled(actor, level)`, `party_wiped()`, `party_changed()`, `selection_changed()`, `tactical_pause_toggled(paused)`
-- Dungeon & runs: `chunk_loaded(id)`, `chunk_unloaded(id)`, `run_started(start_point_id)`, `run_ended(result)`, `extraction_point_discovered(id)`
-- Calendar & economy: `day_started(day)`, `phase_changed(phase)`, `weekly_settlement(day)`, `gold_changed(amount)`, `debt_paid(amount, remaining)`
-- Shop: `item_sold(item, price, npc_type)`, `item_bought(item, price, npc_type)`, `customer_walked_out(npc_type)`, `merchant_leveled(level)`, `reputation_changed(npc_type, value)`
+Scope: Declare and document canonical signals in `autoload/event_bus.gd` (each with meaning, args and emitting owner):
+- App: `game_state_changed(old_state: int, new_state: int)` (Game.State values; added in F-002)
+- Combat & party: `actor_died(actor: Node, killer: Node)` (killer may be null), `item_picked_up(actor: Node, item)`, `member_leveled(actor: Node, level: int)`, `party_wiped()`, `party_changed()`, `selection_changed()`, `tactical_pause_toggled(paused: bool)`
+- Dungeon & runs: `chunk_loaded(id: StringName)`, `chunk_unloaded(id: StringName)`, `run_started(start_point_id: StringName)`, `run_ended(result: int)` (RunManager result enum, F-070), `extraction_point_discovered(id: StringName)`
+- Calendar & economy: `day_started(day: int)`, `phase_changed(phase: int)` (Calendar phase enum, F-082), `weekly_settlement(day: int)`, `gold_changed(amount: int)` (**new balance**, not delta), `debt_paid(amount: int, remaining: int)`
+- Shop: `item_sold(item, price: int, npc_type: StringName)`, `item_bought(item, price: int, npc_type: StringName)`, `customer_walked_out(npc_type: StringName)`, `merchant_leveled(level: int)`, `reputation_changed(npc_type: StringName, value: int)` (new value, 0–100)
+- `item` args are typed `Object` until F-040, then tightened to `ItemInstance`.
 Acceptance:
 - [ ] Signals declared & documented; a test emits/receives each.
+Notes: `tests/test_event_bus.gd` holds the contract table and fails if EventBus declares a signal not in it (or vice versa). Add new signals to EventBus, this list, and that table together.
 
 ---
 
@@ -1260,9 +1267,9 @@ class_name MarketTrendData extends Resource
 - [x] F-000 Project Setup — project.godot (Forward+, Jolt, 9 named layers, GUT plugin), scenes/main.tscn/.gd, tests/test_smoke.gd (3 passing), §3.1 tree with .gdkeep, GUT 9.7.1 vendored, .gitignore/.editorconfig/.gutconfig.json. Gap: no git repo yet, so no commit.
 - [x] F-001 Input Map & Settings — core/input/input_actions.gd (45 actions, `register_missing()` for F-002), tools/generate_input_map.gd, core/resources/game_settings.gd, tests (11 new). Re-run the generator after editing the table.
 - [x] F-002 Autoload Scaffolding — 15 autoloads in autoload/ registered in project.godot; Game (State enum, set_state → EventBus.game_state_changed, clamped set_time_scale, settings loaded at startup); InputMapSetup calls InputActions.register_missing(); other 12 are doc-only stubs listing planned API; tests/test_autoloads.gd (6). EventBus has only game_state_changed until F-005.
-- [ ] F-003 Debug Console
-- [ ] F-004 RNG & Utilities
-- [ ] F-005 Event Bus Contract
+- [x] F-003 Debug Console — autoload/debug_console.gd (CanvasLayer, code-built UI, history, overlay rows FPS/State/Actors/Chunks/Day; built-ins help/clear/overlay/timescale/state), core/debug/command_registry.gd, tests (17 new). Chunks/Day rows show "—" until F-062/F-082.
+- [x] F-004 RNG & Utilities — core/util/rng.gd (seed/state/derive, roll_range(f), chance, weighted_index/pick/pick_dict, pick, shuffle), core/util/math_util.gd, core/util/node_util.gd; tests (26 new: rng 14, math 6, node 6).
+- [x] F-005 Event Bus Contract — autoload/event_bus.gd (23 documented signals incl. game_state_changed; unused_signal warnings suppressed until emitters exist), tests/test_event_bus.gd (contract match, arg counts, emit+receive each). **M0 complete.**
 
 **M1**
 - [ ] F-010 Test Arena
@@ -1414,6 +1421,9 @@ class_name MarketTrendData extends Resource
 | 32 | 2026-11-03 | Input bindings live in `InputActions.ACTIONS` (code); `tools/generate_input_map.gd` writes them to `project.godot`; events use device -1 (all devices); camera WASD/QE use physical keycodes; Ctrl combos use `command_or_control_autoremap` (Cmd on macOS); `Settings` renamed `GameSettings` | One table shared by project settings, runtime `InputMapSetup`, and tests; avoids hand-writing serialized InputEvents | F-001 |
 | 33 | 2026-11-03 | Autoload scripts have no `class_name` (the autoload name is the global); planned APIs are documented in `##` comments instead of stub methods | Godot forbids class_name clashing with autoload names; avoids locking later features into guessed signatures | F-002 |
 | 34 | 2026-11-03 | `Game` allows any state transition until features add guards; `Game` owns the `GameSettings` instance (loaded in `_ready`, saved via `save_settings()`); time scale clamped 0–4 | Keep F-002 from inventing rules; one obvious home for settings | F-002 |
+| 35 | 2026-11-03 | Debug console: commands take `PackedStringArray` args and return a String; UI built in code (no .tscn); console input disabled in release builds while `register()` stays callable; overlay rows are registered providers | One uniform contract for every feature; no scene file to maintain; feature code needs no build checks | F-003 |
+| 36 | 2026-11-03 | RNG is instance-based; systems derive independent streams with `derive(name)`; seed 0 = random; seed exposed as `seed_value` (not `seed`, which would shadow the global `seed()`); root RNG + saved state deferred to F-076 | Rolls in one system never shift another's sequence; reproducible saves and tests | F-004 |
+| 37 | 2026-11-03 | EventBus typing policy: actors `Node`, ids `StringName`, money/levels/days/enums `int`, items `Object` until F-040; `gold_changed` carries the new balance; enum-valued args are ints owned by their emitter (RunManager, Calendar); every signal documents its emitter; a contract test rejects undocumented signals | Signal arg types aren't enforced at emit, so docs + contract test keep the bus honest without referencing classes that don't exist yet | F-005 |
 
 *Open decisions to resolve in-feature:*
 - nav across chunks (F-063)
