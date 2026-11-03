@@ -40,7 +40,7 @@ You are **the Shopkeeper**, saddled with a crushing debt, running a curio shop i
 6. **The calendar bites.** Each day is either a run or a town day. Debt and salaries are due weekly; injuries cost days.
 
 ### 1.3 Target
-- Engine: **Godot 4.3+** (4.x stable), **GDScript**, 3D with fixed-angle rotatable camera (dungeon and town).
+- Engine: **Godot 4.7.2** (.NET editor build, but **GDScript only**; no C#), Forward+ renderer, Jolt physics, 3D with fixed-angle rotatable camera (dungeon and town). Local binary: `/Applications/Godot_4.7.2_mono.app/Contents/MacOS/Godot` (`$GODOT` below).
 - Platform: PC (Windows/Linux/macOS). Keyboard + mouse only.
 - Scope target: a **vertical slice** (Milestones M0–M9), then content expansion.
 - Single-player first. Multiplayer is out of scope until M12.
@@ -244,6 +244,7 @@ res://
     components/               # reusable Node components (Health, Stats, Level, ...)
     resources/                # Resource class definitions (.gd)
     economy/                  # pure logic: haggle, customer draw, ledger, pricing
+    input/                    # InputActions: single source of truth for input bindings
     util/
   data/
     classes/                  # *.tres ClassData
@@ -284,6 +285,7 @@ res://
   fx/
   audio/
   tests/                      # GUT tests (res://tests/test_*.gd)
+  tools/                      # editor/headless utility scripts (e.g. generate_input_map.gd)
   assets/                     # placeholder art & audio (CC0)
 ```
 
@@ -323,7 +325,10 @@ res://
 ### 3.4 Testing
 - Use **GUT** in `res://tests/`. Pure-logic features (stats, XP, loot, damage, haggle, customer draw, ledger, injury, wipe resolution, save) **must** have unit tests.
 - Scene features get a **smoke test scene** `res://tests/scenes/<feature>_smoke.tscn` runnable headless, plus a manual test doc if visual.
-- CI-style command: `godot --headless -s addons/gut/gut_cmdln.gd -gdir=res://tests -gexit`.
+- GUT version: **9.7.1** (vendored in `addons/gut/`; first release with Godot 4.7 support). Config in `.gutconfig.json`.
+- On a fresh checkout, build the class cache once: `$GODOT --headless --path . --import`.
+- CI-style command: `$GODOT --headless --path . -s addons/gut/gut_cmdln.gd -gdir=res://tests -gexit`.
+- Smoke-run the main scene: `$GODOT --headless --path . --quit-after 5`.
 
 ### 3.5 Performance Budgets (guidelines)
 - Dungeon: 60 FPS on a mid-range GPU with 6 party + 40 active monsters.
@@ -380,7 +385,7 @@ Notes:      pitfalls, tuning hints
 
 ### F-000 Project Setup
 Depends on: —
-Scope: Create Godot 4.3+ project, folder layout (3.1), `.gitignore` for `.godot/`, install **GUT**, set rendering to Forward+, create `Main.tscn` that loads a blank 3D scene. Configure collision layer names (3.3).
+Scope: Create Godot 4.7.2 project, folder layout (3.1), `.gitignore` for `.godot/`, install **GUT**, set rendering to Forward+, create `Main.tscn` that loads a blank 3D scene. Configure collision layer names (3.3).
 Files: `project.godot`, `.gitignore`, `scenes/main.tscn`, `addons/gut/`, folder structure with `.gdkeep`.
 Acceptance:
 - [ ] Project opens with no errors; running shows an empty 3D scene.
@@ -389,7 +394,7 @@ Acceptance:
 
 ### F-001 Input Map & Settings Stub
 Depends on: F-000
-Scope: Define all input actions from 2.1 (dungeon + town/shop). `Settings` resource (camera speeds, edge scroll, UI scale) persisted to `user://settings.cfg`.
+Scope: Define all input actions from 2.1 (dungeon + town/shop) in `core/input/input_actions.gd` and write them into `project.godot` with `tools/generate_input_map.gd`. `GameSettings` resource (camera speeds, edge scroll, UI scale) persisted to `user://settings.cfg`.
 Acceptance:
 - [ ] All actions exist (`move_click`, `select_all`, `tactical_pause`, `ability_1`…`ability_6`, `potion_health`, `build_mode`, `haggle_up`, ...).
 - [ ] Settings load/save round-trip test passes.
@@ -1252,9 +1257,9 @@ class_name MarketTrendData extends Resource
 > Format: `- [ ] F-XXX Name — notes (files/known gaps)`
 
 **M0**
-- [ ] F-000 Project Setup
-- [ ] F-001 Input Map & Settings
-- [ ] F-002 Autoload Scaffolding
+- [x] F-000 Project Setup — project.godot (Forward+, Jolt, 9 named layers, GUT plugin), scenes/main.tscn/.gd, tests/test_smoke.gd (3 passing), §3.1 tree with .gdkeep, GUT 9.7.1 vendored, .gitignore/.editorconfig/.gutconfig.json. Gap: no git repo yet, so no commit.
+- [x] F-001 Input Map & Settings — core/input/input_actions.gd (45 actions, `register_missing()` for F-002), tools/generate_input_map.gd, core/resources/game_settings.gd, tests (11 new). Re-run the generator after editing the table.
+- [x] F-002 Autoload Scaffolding — 15 autoloads in autoload/ registered in project.godot; Game (State enum, set_state → EventBus.game_state_changed, clamped set_time_scale, settings loaded at startup); InputMapSetup calls InputActions.register_missing(); other 12 are doc-only stubs listing planned API; tests/test_autoloads.gd (6). EventBus has only game_state_changed until F-005.
 - [ ] F-003 Debug Console
 - [ ] F-004 RNG & Utilities
 - [ ] F-005 Event Bus Contract
@@ -1375,7 +1380,7 @@ class_name MarketTrendData extends Resource
 
 | # | Date | Decision | Rationale | Feature |
 |---|---|---|---|---|
-| 1 | 2026-11-03 | Godot 4.3+, GDScript, 3D | Fits streaming + fixed camera; fast iteration | — |
+| 1 | 2026-11-03 | Godot 4.x, GDScript, 3D *(pinned to 4.7.2 by #28)* | Fits streaming + fixed camera; fast iteration | — |
 | 2 | 2026-11-03 | Data-driven via `Resource` (.tres) | Lets Claude add content without code changes | — |
 | 3 | 2026-11-03 | Single shared gold wallet | Matches original feel, simpler UI. *Amended #6: the wallet is now the shop's purse, shared by the shop and the guild.* | F-083 |
 | 4 | 2026-11-03 | JSON saves, versioned | Debuggable, diffable | F-076 |
@@ -1402,6 +1407,13 @@ class_name MarketTrendData extends Resource
 | 25 | 2026-11-03 | Saves in town only; quitting mid-run resolves as wipe | Preserves extraction stakes | F-076 |
 | 26 | 2026-11-03 | Extraction uses a short channel (3 s) cancelled by leaving the radius | Prevents instant mid-fight escape; tunable | F-071 |
 | 27 | 2026-11-03 | Unpaid members leave at settlement; their gear goes to storage | Keeps the salary pressure meaningful without destroying items | F-083 |
+| 28 | 2026-11-03 | Pin engine to Godot 4.7.2 (.NET editor, GDScript only) and GUT 9.7.1 | User direction; GUT 9.7.x is the first line with 4.7 compatibility | F-000 |
+| 29 | 2026-11-03 | Forward+ renderer | Desktop-only target; best lighting for dungeon interiors | F-000 |
+| 30 | 2026-11-03 | Jolt Physics for 3D, set explicitly in project.godot | Built into 4.x, faster and more stable than GodotPhysics3D | F-000 |
+| 31 | 2026-11-03 | POLYGON BossZombies pack excluded from the project (`.gdignore`) and from git (`.gitignore`) | Licensed asset pack: avoid redistribution and a slow import of every FBX; copy individual assets into `assets/` when a feature needs them | F-000 |
+| 32 | 2026-11-03 | Input bindings live in `InputActions.ACTIONS` (code); `tools/generate_input_map.gd` writes them to `project.godot`; events use device -1 (all devices); camera WASD/QE use physical keycodes; Ctrl combos use `command_or_control_autoremap` (Cmd on macOS); `Settings` renamed `GameSettings` | One table shared by project settings, runtime `InputMapSetup`, and tests; avoids hand-writing serialized InputEvents | F-001 |
+| 33 | 2026-11-03 | Autoload scripts have no `class_name` (the autoload name is the global); planned APIs are documented in `##` comments instead of stub methods | Godot forbids class_name clashing with autoload names; avoids locking later features into guessed signatures | F-002 |
+| 34 | 2026-11-03 | `Game` allows any state transition until features add guards; `Game` owns the `GameSettings` instance (loaded in `_ready`, saved via `save_settings()`); time scale clamped 0–4 | Keep F-002 from inventing rules; one obvious home for settings | F-002 |
 
 *Open decisions to resolve in-feature:*
 - nav across chunks (F-063)
@@ -1410,7 +1422,6 @@ class_name MarketTrendData extends Resource
 - XP share mode default full vs split (F-031)
 - debt schedule amounts (F-083 / `docs/balance.md`)
 - number of dungeon levels for v1 (default 3, F-110)
-- render pipeline Forward+ vs Mobile (F-000)
 
 ---
 

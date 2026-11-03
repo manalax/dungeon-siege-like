@@ -1,1 +1,13 @@
-/POLYGON_BossZombies_SourceFiles_v4
+# Godot 4+ specific ignores
+.godot/
+/android/
+
+# OS / editor junk
+.DS_Store
+*.tmp
+
+# Licensed third-party art pack: not redistributable. Copy individual assets into assets/ when needed.
+/POLYGON_BossZombies_SourceFiles_v4/
+/POLYGON_BossZombies_SourceFiles_v4.zip
+
+# Note: *.uid sidecar files ARE committed (Godot 4.4+ resource UIDs).
