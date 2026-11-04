@@ -64,3 +64,10 @@ func test_state_builtin_sets_game_state() -> void:
 	DebugConsole.execute("state town")
 	assert_eq(Game.state, Game.State.TOWN)
 	Game.state = before
+
+
+func test_open_then_close_same_frame_leaves_no_focus() -> void:
+	DebugConsole.open()
+	DebugConsole.close()
+	await wait_process_frames(2)
+	assert_null(get_viewport().gui_get_focus_owner(), "hidden console must not keep keyboard focus")

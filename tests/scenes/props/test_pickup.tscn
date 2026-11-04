@@ -1,0 +1,28 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://core/components/pickable.gd" id="1_pick"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_gold"]
+albedo_color = Color(0.95, 0.75, 0.2, 1)
+metallic = 0.6
+
+[sub_resource type="BoxMesh" id="Mesh_pickup"]
+material = SubResource("Mat_gold")
+size = Vector3(0.4, 0.3, 0.4)
+
+[sub_resource type="BoxShape3D" id="Shape_pick"]
+size = Vector3(0.7, 0.6, 0.7)
+
+[node name="TestPickup" type="Node3D"]
+
+[node name="Mesh" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.15, 0)
+mesh = SubResource("Mesh_pickup")
+
+[node name="Pickable" type="Area3D" parent="."]
+script = ExtResource("1_pick")
+kind = 1
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Pickable"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.3, 0)
+shape = SubResource("Shape_pick")

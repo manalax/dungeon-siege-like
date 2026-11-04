@@ -1,0 +1,85 @@
+[gd_scene load_steps=13 format=3]
+
+[ext_resource type="Script" path="res://actors/party_member/party_member.gd" id="1_pm"]
+[ext_resource type="Script" path="res://core/components/locomotion_component.gd" id="2_loco"]
+[ext_resource type="Resource" path="res://data/actors/test_party_member.tres" id="3_data"]
+[ext_resource type="Script" path="res://core/components/pickable.gd" id="4_pick"]
+
+[sub_resource type="CapsuleShape3D" id="Shape_body"]
+radius = 0.4
+height = 1.75
+
+[sub_resource type="CapsuleShape3D" id="Shape_pick"]
+radius = 0.52
+height = 1.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_body"]
+albedo_color = Color(0.25, 0.55, 0.9, 1)
+
+[sub_resource type="CapsuleMesh" id="Mesh_body"]
+material = SubResource("Mat_body")
+radius = 0.4
+height = 1.75
+
+[sub_resource type="StandardMaterial3D" id="Mat_facing"]
+albedo_color = Color(0.1, 0.1, 0.1, 1)
+
+[sub_resource type="BoxMesh" id="Mesh_facing"]
+material = SubResource("Mat_facing")
+size = Vector3(0.15, 0.15, 0.25)
+
+[sub_resource type="StandardMaterial3D" id="Mat_ring"]
+shading_mode = 0
+albedo_color = Color(0.3, 1, 0.4, 1)
+
+[sub_resource type="TorusMesh" id="Mesh_ring"]
+material = SubResource("Mat_ring")
+inner_radius = 0.45
+outer_radius = 0.55
+rings = 32
+
+[node name="PartyMember" type="CharacterBody3D"]
+collision_layer = 2
+collision_mask = 1
+script = ExtResource("1_pm")
+data = ExtResource("3_data")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.875, 0)
+shape = SubResource("Shape_body")
+
+[node name="Body" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.875, 0)
+mesh = SubResource("Mesh_body")
+
+[node name="Facing" type="MeshInstance3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.35, -0.4)
+mesh = SubResource("Mesh_facing")
+
+[node name="NavigationAgent3D" type="NavigationAgent3D" parent="."]
+
+[node name="Locomotion" type="Node" parent="."]
+script = ExtResource("2_loco")
+
+[node name="SelectionRing" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.02, 0)
+visible = false
+cast_shadow = 0
+mesh = SubResource("Mesh_ring")
+
+[node name="NameLabel" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.1, 0)
+visible = false
+billboard = 1
+no_depth_test = true
+font_size = 40
+outline_size = 10
+text = "Party Member"
+
+[node name="Pickable" type="Area3D" parent="."]
+script = ExtResource("4_pick")
+highlight_meshes = Array[NodePath]([NodePath("../Body")])
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Pickable"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.95, 0)
+shape = SubResource("Shape_pick")

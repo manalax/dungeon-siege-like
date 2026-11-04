@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ActorData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/resources/actor_data.gd" id="1_actor"]
+
+[resource]
+script = ExtResource("1_actor")
+id = &"test_party_member"
+display_name = "Farmhand"
+move_speed = 4.0
+acceleration = 40.0
+turn_speed = 720.0
+capsule_radius = 0.4
+capsule_height = 1.75
+color = Color(0.25, 0.55, 0.9, 1)

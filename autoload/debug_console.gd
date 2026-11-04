@@ -75,7 +75,7 @@ func open() -> void:
 		return
 	_panel.visible = true
 	_input_line.clear()
-	_input_line.grab_focus.call_deferred()
+	_focus_input_if_open.call_deferred()
 
 
 func close() -> void:
@@ -94,13 +94,24 @@ func is_open() -> bool:
 	return _panel.visible
 
 
+## Deferred from open(): if the console was closed again in the same frame, don't leave
+## the hidden input line holding keyboard focus (it would swallow game hotkeys).
+func _focus_input_if_open() -> void:
+	if is_open():
+		_input_line.grab_focus()
+
+
 ## Adds or replaces an overlay row. provider: func() -> String
 func set_overlay_row(key: String, provider: Callable) -> void:
 	_overlay_rows[key] = provider
 	refresh_overlay()
 
 
-func remove_overlay_row(key: String) -> void:
+## Removes a row. Pass the provider you registered so a newer owner's row (same key,
+## registered before you exited the tree) isn't removed by mistake.
+func remove_overlay_row(key: String, provider: Callable = Callable()) -> void:
+	if provider.is_valid() and _overlay_rows.get(key) != provider:
+		return
 	_overlay_rows.erase(key)
 	refresh_overlay()
 

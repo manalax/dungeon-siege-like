@@ -13,6 +13,7 @@ signal navmesh_ready
 var is_navmesh_ready: bool = false
 
 @onready var nav_region: NavigationRegion3D = $NavigationRegion3D
+@onready var camera: RtsCamera = $RtsCamera
 
 
 func _ready() -> void:

@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="CameraProfile" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/resources/camera_profile.gd" id="1_profile"]
+
+[resource]
+script = ExtResource("1_profile")
+min_distance = 8.0
+max_distance = 32.0
+default_distance = 18.0
+zoom_step = 0.12
+pitch_at_min = 40.0
+pitch_at_max = 60.0
+follow_sharpness = 10.0
+rotate_sharpness = 14.0
+zoom_sharpness = 12.0
+pivot_height = 1.0
+use_bounds = true
+bounds = Rect2(-20, -20, 40, 40)

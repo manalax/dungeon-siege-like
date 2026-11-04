@@ -248,6 +248,8 @@ res://
     debug/                    # DebugCommandRegistry (console parsing/dispatch)
     util/
   data/
+    actors/                   # *.tres ActorData (body & movement tuning shared by all walking actors)
+    camera/                   # *.tres CameraProfile (per-context camera limits & feel)
     classes/                  # *.tres ClassData
     traits/                   # *.tres TraitData
     abilities/                # *.tres AbilityData
@@ -313,12 +315,13 @@ res://
 > Keep autoloads thin. Logic lives in components/resources and `core/economy`. Autoloads are registered in `project.godot`.
 
 ### 3.3 Key Patterns
-- **Components (child Nodes):** `HealthComponent`, `ManaComponent`, `StatsComponent`, `LevelComponent`, `EquipmentComponent`, `InventoryComponent`, `CombatComponent`, `AbilityCasterComponent`, `StatusEffectComponent`, `AIControllerComponent`, `FormationFollowerComponent`, `AggroComponent`, `LootDropperComponent`. Actors are scenes composing these.
-- **Resources:** `ItemData`, `AffixData`, `AbilityData`, `ClassData`, `TraitData`, `MonsterData`, `LootTable`, `FormationData`, `ChunkData`, `ExtractionPointData`, `ProgressionData`, `NpcTypeData`, `DecorData`, `MarketData`, `MarketTrendData`, `EconomyData`, `RunConfig`. Runtime instances: `ItemInstance` (data ref + affixes + stack + `found_this_run` + `cost_basis`), `RecruitInstance` (class, name, level, XP, stat variance, traits, injury).
+- **Components (child Nodes):** `LocomotionComponent` (navmesh movement, F-011), `Pickable` (click/hover target on the `click_pick` layer, F-013), `HealthComponent`, `ManaComponent`, `StatsComponent`, `LevelComponent`, `EquipmentComponent`, `InventoryComponent`, `CombatComponent`, `AbilityCasterComponent`, `StatusEffectComponent`, `AIControllerComponent`, `FormationFollowerComponent`, `AggroComponent`, `LootDropperComponent`. Actors are scenes composing these.
+- **Resources:** `ActorData` (move speed, accel, turn speed, capsule, colour), `CameraProfile` (zoom/pitch range, smoothing, bounds), `ItemData`, `AffixData`, `AbilityData`, `ClassData`, `TraitData`, `MonsterData`, `LootTable`, `FormationData`, `ChunkData`, `ExtractionPointData`, `ProgressionData`, `NpcTypeData`, `DecorData`, `MarketData`, `MarketTrendData`, `EconomyData`, `RunConfig`. Runtime instances: `ItemInstance` (data ref + affixes + stack + `found_this_run` + `cost_basis`), `RecruitInstance` (class, name, level, XP, stat variance, traits, injury).
 - **Signals up, calls down.** Components emit signals; parents/EventBus listen.
-- **State machines** for actor behavior (`Idle, Move, Attack, Cast, Dead, Stunned`; customers: `Enter, Browse, Approach, Haggle, Leave`). One pattern project-wide.
+- **State machines** for actor behavior (`Idle, Move, Attack, Cast, Dead, Stunned`; customers: `Enter, Browse, Approach, Haggle, Leave`). One pattern project-wide: `enum State` + `_set_state()` with `_enter_state`/`_exit_state` hooks + `match` in the tick (reference: `core/components/locomotion_component.gd`).
 - **Collision layers** (names must be used):
   1. `world` 2. `party` 3. `monsters` 4. `npcs` (town NPCs & customers) 5. `projectiles` 6. `pickups` 7. `triggers` 8. `click_pick` 9. `build_grid`
+  - `click_pick` is used only by `Pickable` areas; the Picker rays `world | click_pick`.
 - **Navigation:** per-chunk `NavigationRegion3D`; cross-chunk approach decided in F-063. Town and shop each have their own navmesh.
 - **Typing:** static typing everywhere. Use `class_name` for components and resources.
 - **Naming:** files `snake_case.gd`, classes `PascalCase`, signals `past_tense_snake`, constants `UPPER_SNAKE`.
@@ -455,6 +458,7 @@ Files: `actors/party_member/party_member.tscn/.gd`
 Acceptance:
 - [ ] `move_to(Vector3)` navigates around obstacles and stops within 0.3 m.
 - [ ] Move speed is data-driven.
+Notes: Speed/accel/turn/capsule/colour come from `ActorData` (`data/actors/`); capsule radius must be ≤ 0.5 (navmesh agent radius). Movement lives in `LocomotionComponent`; the parent calls `physics_tick(delta)`. `move_to()` snaps to the closest navmesh point and returns it. Arrival is measured on XZ; `path_height_offset` is measured per move because baked navmeshes sit above the floor (0.5 m in the arena). `set_selected()` shows ring + label, `set_hovered()` label only. Debug: `pm_move <x> <z> [i]`, `pm_select <i>`. Smoke scene: `tests/scenes/party_member_smoke.tscn` (run headless with `--fixed-fps 60`).
 
 ### F-012 RTS Camera
 Depends on: F-010
@@ -462,6 +466,7 @@ Scope: Fixed-pitch (~50°) orbit camera: rotate, zoom (clamped), smooth follow, 
 Acceptance:
 - [ ] All inputs work; F-001 settings control speeds.
 - [ ] No jitter while following a moving target.
+Notes: `actors/camera/rts_camera.tscn` (`RtsCamera`), limits/feel from a `CameraProfile` (`data/camera/`), speeds read live from `Game.settings`. Pitch is tied to zoom (40° in → 60° out). WASD/edge pan turn follow off; `V` snaps back. Zoom aims at the pivot. Uses real elapsed time (works under tactical pause / `timescale`). Keyboard input ignored while a Control has focus; edge pan only after the mouse has entered the window. **Physics interpolation is on project-wide**: the camera follows `get_global_transform_interpolated()`; after moving a body directly call `reset_physics_interpolation()` (or `PartyMember.teleport()`).
 
 ### F-013 Mouse Picking
 Depends on: F-011, F-012
@@ -469,6 +474,7 @@ Scope: `Picker` service: raycast returns `{kind: ground|actor|pickup|interactabl
 Acceptance:
 - [ ] Hover & click return correct kinds in test arena.
 - [ ] UI-covered clicks are ignored.
+Notes: Make anything clickable by adding a `Pickable` (Area3D + CollisionShape3D; kind ACTOR/PICKUP/INTERACTABLE; may be larger than the body). The Picker is a child of `RtsCamera` (`camera.picker`): `pick_at(screen_pos) -> PickResult` (`kind` NONE/GROUND/ACTOR/PICKUP/INTERACTABLE, `node`, `pickable`, `position`; `to_dict()` gives the spec's `{kind, node, position}`), signals `hover_changed(result)` and `clicked(result, event)` (left/right press only, via `_unhandled_input`, so UI consumes its own clicks). Hover outline colour by kind (actor white, pickup gold, interactable light blue; monsters override red) via `Pickable.highlight_color`; target's `set_hovered()` is called too. Cursor unchanged (deferred to a UI pass). Test props: `tests/scenes/props/`.
 
 ### F-014 Selection System
 Depends on: F-011, F-013, F-005
@@ -1274,9 +1280,9 @@ class_name MarketTrendData extends Resource
 
 **M1**
 - [x] F-010 Test Arena — dungeon/test/test_arena.tscn/.gd (40×40 floor, wall, 3 crates, rock, 2-pillar 1.6 m gap; spawn points P1–P3; waypoints), shared default_environment.tres (main.tscn uses it too), tests/test_test_arena.gd (6). Overview Camera3D is a stand-in until F-012.
-- [ ] F-011 Party Member Actor
-- [ ] F-012 RTS Camera
-- [ ] F-013 Mouse Picking
+- [x] F-011 Party Member Actor — actors/party_member/party_member.tscn/.gd, core/components/locomotion_component.gd, core/resources/actor_data.gd, data/actors/test_party_member.tres, tests/scenes/party_member_smoke.tscn, tests (15 new: locomotion 7, party member 8). Avoidance off until F-015; hover wired, called from F-013.
+- [x] F-012 RTS Camera — actors/camera/rts_camera.tscn/.gd, core/resources/camera_profile.gd, data/camera/dungeon_test.tres; arena uses it (`TestArena.camera`), smoke scene follows member 0; PartyMember.teleport(); physics interpolation enabled; fixed DebugConsole leaving a hidden input focused after open+close in one frame; tests (19 new). No wall-occlusion handling (out of scope).
+- [x] F-013 Mouse Picking — actors/camera/picker.gd + pick_result.gd, core/components/pickable.gd, fx/shaders/outline.gdshader + fx/materials/outline.tres; Pickable on PartyMember (1.3× radius); test pickup & lever props; smoke scene logs clicks; DebugConsole.remove_overlay_row(key, provider) ownership fix; tests (14 new).
 - [ ] F-014 Selection System
 - [ ] F-015 Click-to-Move
 - [ ] F-016 Basic HUD Shell
@@ -1426,6 +1432,9 @@ class_name MarketTrendData extends Resource
 | 36 | 2026-11-03 | RNG is instance-based; systems derive independent streams with `derive(name)`; seed 0 = random; seed exposed as `seed_value` (not `seed`, which would shadow the global `seed()`); root RNG + saved state deferred to F-076 | Rolls in one system never shift another's sequence; reproducible saves and tests | F-004 |
 | 37 | 2026-11-03 | EventBus typing policy: actors `Node`, ids `StringName`, money/levels/days/enums `int`, items `Object` until F-040; `gold_changed` carries the new balance; enum-valued args are ints owned by their emitter (RunManager, Calendar); every signal documents its emitter; a contract test rejects undocumented signals | Signal arg types aren't enforced at emit, so docs + contract test keep the bus honest without referencing classes that don't exist yet | F-005 |
 | 38 | 2026-11-04 | Test arena bakes its navmesh at runtime from static colliders; `navmesh_ready` fires on the first `map_changed` where the map serves the region; walk-blocking props carry a carving `NavigationObstacle3D`; navmesh agent radius 0.5 / height 1.75 / climb 0.25 (cell-size multiples; the F-011 capsule radius must be ≤ 0.5); offline per-chunk baking deferred to F-060 | Collider parsing works headless; the map needs 1–2 physics frames to sync after a bake; prop tops otherwise bake as unreachable islands that clicks could target; non-multiple agent sizes are silently rounded with warnings | F-010 |
+| 39 | 2026-11-04 | Actors: shared `ActorData` resource for body/movement tuning; movement in a reusable `LocomotionComponent`; project-wide FSM pattern = enum + `_set_state` enter/exit hooks + `match`; arrival measured on XZ; `NavigationAgent3D.path_height_offset` measured from the navmesh under the body on each `move_to`; unreachable targets snap to the closest navmesh point; name label on select/hover, torus selection ring | User choices (data, FSM, structure, feel, label, ring, unreachable); the height offset fixes agents stalling because baked navmesh sits 0.5 m above the floor | F-011 |
+| 40 | 2026-11-04 | RTS camera: pitch tied to zoom (40–60°), manual pan breaks follow (V resumes), free smoothed rotation, zoom to screen centre, pan speed scales with zoom, follow on at start; limits in `CameraProfile` .tres per context; real-time delta; 3D physics interpolation enabled project-wide and followed via interpolated transforms; teleports must reset interpolation | User choices; interpolation is the engine's fix for 60 Hz physics vs high-refresh rendering jitter; real time keeps the camera usable during tactical pause | F-012 |
+| 41 | 2026-11-04 | Picking: Picker is a node on RtsCamera; things become clickable via a `Pickable` Area3D component on `click_pick`; hover = inverted-hull outline as `material_overlay`, coloured by kind with per-Pickable override; Picker emits `clicked(result, event)` from `_unhandled_input` (UI clicks never reach it); `PickResult` is its own class; cursor shapes deferred; overlay rows removed only by the provider that owns them | User choices (home, hit targets, outline, colours, clicks, cursor); `_unhandled_input` gives the UI-blocking acceptance for free; row ownership fixes a free-order bug between successive cameras/pickers | F-013 |
 
 *Open decisions to resolve in-feature:*
 - nav across chunks (F-063)
