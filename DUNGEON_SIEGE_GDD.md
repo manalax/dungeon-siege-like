@@ -443,9 +443,10 @@ Notes: `tests/test_event_bus.gd` holds the contract table and fails if EventBus 
 ### F-010 Test Arena
 Depends on: F-000
 Scope: Flat navmesh-baked arena with obstacles. Lighting + simple sky. No streaming.
-Files: `dungeon/test/test_arena.tscn`
+Files: `dungeon/test/test_arena.tscn`, `dungeon/test/test_arena.gd`, `assets/environments/default_environment.tres`
 Acceptance:
 - [ ] Navmesh bakes; obstacles block pathing.
+Notes: Bakes at runtime from static colliders (works headless). Listen for `TestArena.navmesh_ready` (fires once the nav map actually serves the region) before pathing. Each obstacle carries a `NavigationObstacle3D` (`affect_navigation_mesh`) so its top doesn't bake as an unreachable walkable island. Navmesh agent: radius 0.5, height 1.75, climb 0.25 (multiples of the 0.25 m cell). Helpers: `spawn_point(i)`, `waypoint(name)`.
 
 ### F-011 Party Member Actor (Placeholder)
 Depends on: F-010, F-002
@@ -1272,7 +1273,7 @@ class_name MarketTrendData extends Resource
 - [x] F-005 Event Bus Contract — autoload/event_bus.gd (23 documented signals incl. game_state_changed; unused_signal warnings suppressed until emitters exist), tests/test_event_bus.gd (contract match, arg counts, emit+receive each). **M0 complete.**
 
 **M1**
-- [ ] F-010 Test Arena
+- [x] F-010 Test Arena — dungeon/test/test_arena.tscn/.gd (40×40 floor, wall, 3 crates, rock, 2-pillar 1.6 m gap; spawn points P1–P3; waypoints), shared default_environment.tres (main.tscn uses it too), tests/test_test_arena.gd (6). Overview Camera3D is a stand-in until F-012.
 - [ ] F-011 Party Member Actor
 - [ ] F-012 RTS Camera
 - [ ] F-013 Mouse Picking
@@ -1424,6 +1425,7 @@ class_name MarketTrendData extends Resource
 | 35 | 2026-11-03 | Debug console: commands take `PackedStringArray` args and return a String; UI built in code (no .tscn); console input disabled in release builds while `register()` stays callable; overlay rows are registered providers | One uniform contract for every feature; no scene file to maintain; feature code needs no build checks | F-003 |
 | 36 | 2026-11-03 | RNG is instance-based; systems derive independent streams with `derive(name)`; seed 0 = random; seed exposed as `seed_value` (not `seed`, which would shadow the global `seed()`); root RNG + saved state deferred to F-076 | Rolls in one system never shift another's sequence; reproducible saves and tests | F-004 |
 | 37 | 2026-11-03 | EventBus typing policy: actors `Node`, ids `StringName`, money/levels/days/enums `int`, items `Object` until F-040; `gold_changed` carries the new balance; enum-valued args are ints owned by their emitter (RunManager, Calendar); every signal documents its emitter; a contract test rejects undocumented signals | Signal arg types aren't enforced at emit, so docs + contract test keep the bus honest without referencing classes that don't exist yet | F-005 |
+| 38 | 2026-11-04 | Test arena bakes its navmesh at runtime from static colliders; `navmesh_ready` fires on the first `map_changed` where the map serves the region; walk-blocking props carry a carving `NavigationObstacle3D`; navmesh agent radius 0.5 / height 1.75 / climb 0.25 (cell-size multiples; the F-011 capsule radius must be ≤ 0.5); offline per-chunk baking deferred to F-060 | Collider parsing works headless; the map needs 1–2 physics frames to sync after a bake; prop tops otherwise bake as unreachable islands that clicks could target; non-multiple agent sizes are silently rounded with warnings | F-010 |
 
 *Open decisions to resolve in-feature:*
 - nav across chunks (F-063)
