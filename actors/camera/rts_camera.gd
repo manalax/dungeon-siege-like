@@ -2,7 +2,7 @@ class_name RtsCamera extends Node3D
 ## Orbit camera (F-012): pivot + yaw + distance, pitch tied to zoom, smoothed follow.
 ##
 ## - Speeds come from Game.settings (read live); limits/feel from `profile` (CameraProfile).
-## - Any manual pan (WASD / screen edge) turns follow off; V snaps back and resumes.
+## - Any manual pan (arrow keys / screen edge) turns follow off; V snaps back and resumes.
 ## - Uses real elapsed time, so it keeps working during tactical pause / time_scale changes.
 ## - Follows `get_global_transform_interpolated()` (physics interpolation is on project-wide),
 ##   so a target moving at 60 Hz physics doesn't jitter on high-refresh displays.
@@ -26,6 +26,7 @@ var _mouse_inside: bool = false
 
 @onready var camera: Camera3D = $Camera3D
 @onready var picker: Picker = $Picker
+@onready var selection: SelectionController = $SelectionController
 
 
 func _ready() -> void:

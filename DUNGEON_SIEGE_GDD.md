@@ -60,16 +60,16 @@ This is a **mechanical homage** to *Dungeon Siege* (party combat, seamless strea
 | Attack target | Left-click enemy |
 | Pick up item | Left-click item on ground |
 | Interact (extraction point, chest, door) | Left-click interactable |
-| Select character | Click portrait or `F1`–`F6` |
+| Select character | Click character or portrait, or `F1`–`F6` |
 | Select all | `Ctrl+A` or `Home` |
-| Add to selection | `Shift+click` portrait |
+| Add to / remove from selection | `Shift+click` character or portrait, `Shift+F1`–`F6`, `Shift`+drag |
 | Box-select | Left-drag |
 | **Tactical pause** | `Space` |
 | Class abilities (selected character) | `1`–`6` |
 | Quick health / mana potion (selected) | `Z` / `X` |
 | Camera rotate | Hold `Middle Mouse` + drag, or `Q`/`E` |
 | Camera zoom | Mouse wheel |
-| Camera pan | Edge scroll or `WASD` (when unfollowed) |
+| Camera pan | Edge scroll or arrow keys (breaks follow) |
 | Camera follow leader | `V` toggle |
 | Inventory | `I` |
 | Character sheet | `C` |
@@ -462,11 +462,11 @@ Notes: Speed/accel/turn/capsule/colour come from `ActorData` (`data/actors/`); c
 
 ### F-012 RTS Camera
 Depends on: F-010
-Scope: Fixed-pitch (~50°) orbit camera: rotate, zoom (clamped), smooth follow, edge pan when unfollowed, `V` toggles follow, camera-relative WASD pan. Reused in town and shop with different limits.
+Scope: Fixed-pitch (~50°) orbit camera: rotate, zoom (clamped), smooth follow, edge pan when unfollowed, `V` toggles follow, camera-relative arrow-key pan (WASD until F-014). Reused in town and shop with different limits.
 Acceptance:
 - [ ] All inputs work; F-001 settings control speeds.
 - [ ] No jitter while following a moving target.
-Notes: `actors/camera/rts_camera.tscn` (`RtsCamera`), limits/feel from a `CameraProfile` (`data/camera/`), speeds read live from `Game.settings`. Pitch is tied to zoom (40° in → 60° out). WASD/edge pan turn follow off; `V` snaps back. Zoom aims at the pivot. Uses real elapsed time (works under tactical pause / `timescale`). Keyboard input ignored while a Control has focus; edge pan only after the mouse has entered the window. **Physics interpolation is on project-wide**: the camera follows `get_global_transform_interpolated()`; after moving a body directly call `reset_physics_interpolation()` (or `PartyMember.teleport()`).
+Notes: `actors/camera/rts_camera.tscn` (`RtsCamera`), limits/feel from a `CameraProfile` (`data/camera/`), speeds read live from `Game.settings`. Pitch is tied to zoom (40° in → 60° out). Arrow-key/edge pan turn follow off; `V` snaps back. Zoom aims at the pivot. Uses real elapsed time (works under tactical pause / `timescale`). Keyboard input ignored while a Control has focus; edge pan only after the mouse has entered the window. **Physics interpolation is on project-wide**: the camera follows `get_global_transform_interpolated()`; after moving a body directly call `reset_physics_interpolation()` (or `PartyMember.teleport()`).
 
 ### F-013 Mouse Picking
 Depends on: F-011, F-012
@@ -480,7 +480,8 @@ Notes: Make anything clickable by adding a `Pickable` (Area3D + CollisionShape3D
 Depends on: F-011, F-013, F-005
 Scope: Click select, Shift multi-select, `Ctrl+A`, box-select, `F1`–`F6`; selection ring; `selection_changed`.
 Acceptance:
-- [ ] All selection modes work with 3 test members.
+- [x] All selection modes work with 3 test members.
+Notes: State lives in the `Party` autoload: `members` (slot order = registration order; `PartyMember` registers on enter/exit tree until F-050's `deploy()`), `get_member(slot)`, `slot_of`, `select_only`, `select(m, additive)`, `toggle` (never removes the last selected member), `select_set(list, additive)` (empty = no-op), `select_all`, `clear_selection` (tests/debug), `get_selection()` (copy, slot order), `is_selected`, `selection_count`. Only registered members can be selected. `EventBus.selection_changed` fires once per real change; `PartyMember.set_selected()` is just the visual hook. Input is `SelectionController` on `RtsCamera` (`camera.selection`): the press comes via `_unhandled_input` (UI blocks it) and is resolved on release. A drag over 6 px box-selects by each member's body-centre projection (replace; Shift adds; an empty box changes nothing). Otherwise the press position is picked: a member is selected (Shift toggles), and ground/empty leaves the selection alone for F-015. It exposes `click_resolved(result, additive)` and `drag_finished(rect, selected)` for F-015. F1–F6 select a slot (Shift toggles); Ctrl/Cmd+A and Home select all; keys are ignored while a Control has focus. Camera pan moved from WASD to the arrow keys so Ctrl+A doesn't pan; arrows are shared with `haggle_up/down`, which is fine while haggle UI holds focus (revisit in F-094). Debug: `select <i|all|none>`, overlay row `Selected`.
 
 ### F-015 Click-to-Move Commands
 Depends on: F-014
@@ -1283,7 +1284,7 @@ class_name MarketTrendData extends Resource
 - [x] F-011 Party Member Actor — actors/party_member/party_member.tscn/.gd, core/components/locomotion_component.gd, core/resources/actor_data.gd, data/actors/test_party_member.tres, tests/scenes/party_member_smoke.tscn, tests (15 new: locomotion 7, party member 8). Avoidance off until F-015; hover wired, called from F-013.
 - [x] F-012 RTS Camera — actors/camera/rts_camera.tscn/.gd, core/resources/camera_profile.gd, data/camera/dungeon_test.tres; arena uses it (`TestArena.camera`), smoke scene follows member 0; PartyMember.teleport(); physics interpolation enabled; fixed DebugConsole leaving a hidden input focused after open+close in one frame; tests (19 new). No wall-occlusion handling (out of scope).
 - [x] F-013 Mouse Picking — actors/camera/picker.gd + pick_result.gd, core/components/pickable.gd, fx/shaders/outline.gdshader + fx/materials/outline.tres; Pickable on PartyMember (1.3× radius); test pickup & lever props; smoke scene logs clicks; DebugConsole.remove_overlay_row(key, provider) ownership fix; tests (14 new).
-- [ ] F-014 Selection System
+- [x] F-014 Selection System — autoload/party.gd (selection state, `select` command, `Selected` overlay row), actors/camera/selection_controller.gd (click/Shift/box/F-keys/select-all, drag box overlay) on RtsCamera, PartyMember auto-registers with Party; camera pan moved WASD → arrow keys; smoke scene logs selection; docs/manual_tests/F-014.md; tests (35 new: party 17, selection controller 18). Leader/camera linkage deferred to F-050.
 - [ ] F-015 Click-to-Move
 - [ ] F-016 Basic HUD Shell
 - [ ] F-017 Tactical Pause
@@ -1435,6 +1436,7 @@ class_name MarketTrendData extends Resource
 | 39 | 2026-11-04 | Actors: shared `ActorData` resource for body/movement tuning; movement in a reusable `LocomotionComponent`; project-wide FSM pattern = enum + `_set_state` enter/exit hooks + `match`; arrival measured on XZ; `NavigationAgent3D.path_height_offset` measured from the navmesh under the body on each `move_to`; unreachable targets snap to the closest navmesh point; name label on select/hover, torus selection ring | User choices (data, FSM, structure, feel, label, ring, unreachable); the height offset fixes agents stalling because baked navmesh sits 0.5 m above the floor | F-011 |
 | 40 | 2026-11-04 | RTS camera: pitch tied to zoom (40–60°), manual pan breaks follow (V resumes), free smoothed rotation, zoom to screen centre, pan speed scales with zoom, follow on at start; limits in `CameraProfile` .tres per context; real-time delta; 3D physics interpolation enabled project-wide and followed via interpolated transforms; teleports must reset interpolation | User choices; interpolation is the engine's fix for 60 Hz physics vs high-refresh rendering jitter; real time keeps the camera usable during tactical pause | F-012 |
 | 41 | 2026-11-04 | Picking: Picker is a node on RtsCamera; things become clickable via a `Pickable` Area3D component on `click_pick`; hover = inverted-hull outline as `material_overlay`, coloured by kind with per-Pickable override; Picker emits `clicked(result, event)` from `_unhandled_input` (UI clicks never reach it); `PickResult` is its own class; cursor shapes deferred; overlay rows removed only by the provider that owns them | User choices (home, hit targets, outline, colours, clicks, cursor); `_unhandled_input` gives the UI-blocking acceptance for free; row ownership fixes a free-order bug between successive cameras/pickers | F-013 |
+| 42 | 2026-11-05 | Selection: state in the `Party` autoload, input in a `SelectionController` on `RtsCamera`; members auto-register in spawn order until F-050; clicks resolve on release (a drag over 6 px = box, judged by the body-centre projection); plain click on a member replaces, Shift toggles but never empties the selection; ground clicks keep the selection; box replaces, Shift adds, an empty box changes nothing; F1–F6 select a slot (Shift toggles); selection doesn't move the camera. Camera pan moved from WASD to the arrow keys (amends #32's WASD binding) | User choices; release resolution keeps click and drag from double-firing; ground clicks belong to F-015 move; Ctrl+A otherwise also triggered physical-A pan | F-014 |
 
 *Open decisions to resolve in-feature:*
 - nav across chunks (F-063)

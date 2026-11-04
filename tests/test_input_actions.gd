@@ -38,10 +38,12 @@ func test_select_all_uses_ctrl_cmd_autoremap() -> void:
 	assert_true(found, "select_all has a Ctrl/Cmd+A binding")
 
 
-func test_camera_pan_uses_physical_keys() -> void:
-	var event := InputMap.action_get_events("camera_pan_forward")[0] as InputEventKey
-	assert_eq(event.physical_keycode, KEY_W)
-	assert_eq(event.keycode, KEY_NONE)
+func test_camera_pan_uses_arrow_keys() -> void:
+	var expected := {"camera_pan_forward": KEY_UP, "camera_pan_back": KEY_DOWN,
+			"camera_pan_left": KEY_LEFT, "camera_pan_right": KEY_RIGHT}
+	for action: String in expected:
+		var event := InputMap.action_get_events(action)[0] as InputEventKey
+		assert_eq(event.keycode, expected[action], "%s on arrow key" % action)
 
 
 func test_register_missing_restores_erased_action() -> void:

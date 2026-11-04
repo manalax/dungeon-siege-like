@@ -5,7 +5,7 @@ extends RefCounted
 ##
 ## Binding descriptors:
 ##   {"key": KEY_X}        logical keycode (mnemonic hotkeys)
-##   {"physical": KEY_W}   physical keycode (layout-independent movement keys)
+##   {"physical": KEY_Q}   physical keycode (layout-independent keys)
 ##   {"mouse": MOUSE_BUTTON_LEFT}
 ##   optional "ctrl": true maps to Ctrl on Windows/Linux and Cmd on macOS.
 ##
@@ -42,10 +42,10 @@ const ACTIONS: Dictionary = {
 	"camera_rotate_right": [{"physical": KEY_E}],
 	"camera_zoom_in": [{"mouse": MOUSE_BUTTON_WHEEL_UP}],
 	"camera_zoom_out": [{"mouse": MOUSE_BUTTON_WHEEL_DOWN}],
-	"camera_pan_forward": [{"physical": KEY_W}],
-	"camera_pan_back": [{"physical": KEY_S}],
-	"camera_pan_left": [{"physical": KEY_A}],
-	"camera_pan_right": [{"physical": KEY_D}],
+	"camera_pan_forward": [{"key": KEY_UP}],
+	"camera_pan_back": [{"key": KEY_DOWN}],
+	"camera_pan_left": [{"key": KEY_LEFT}],
+	"camera_pan_right": [{"key": KEY_RIGHT}],
 	"camera_follow_toggle": [{"key": KEY_V}],
 	# Panels
 	"inventory_toggle": [{"key": KEY_I}],

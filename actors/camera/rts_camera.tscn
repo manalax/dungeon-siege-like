@@ -1,7 +1,8 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://actors/camera/rts_camera.gd" id="1_cam"]
 [ext_resource type="Script" path="res://actors/camera/picker.gd" id="2_picker"]
+[ext_resource type="Script" path="res://actors/camera/selection_controller.gd" id="3_sel"]
 
 [node name="RtsCamera" type="Node3D"]
 script = ExtResource("1_cam")
@@ -12,3 +13,6 @@ far = 500.0
 
 [node name="Picker" type="Node" parent="."]
 script = ExtResource("2_picker")
+
+[node name="SelectionController" type="Node" parent="."]
+script = ExtResource("3_sel")

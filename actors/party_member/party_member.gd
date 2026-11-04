@@ -32,6 +32,16 @@ func _ready() -> void:
 	_register_debug_commands()
 
 
+## Enter/exit pair (not _ready) so a re-parented member re-registers. Party only touches
+## the visuals of members it selects, which happens after _ready.
+func _enter_tree() -> void:
+	Party.register_member(self)
+
+
+func _exit_tree() -> void:
+	Party.unregister_member(self)
+
+
 func _physics_process(delta: float) -> void:
 	locomotion.physics_tick(delta)
 
@@ -53,10 +63,16 @@ func teleport(pos: Vector3) -> void:
 	reset_physics_interpolation()
 
 
+## Screen-space test point for box selection (body centre).
+func selection_point() -> Vector3:
+	return global_position + Vector3.UP * data.capsule_height * 0.5
+
+
 func get_display_name() -> String:
 	return display_name_override if not display_name_override.is_empty() else data.display_name
 
 
+## Visual hook only: Party (F-014) owns selection state and calls this.
 func set_selected(on: bool) -> void:
 	_selected = on
 	_refresh_indicators()
@@ -122,7 +138,7 @@ func _register_debug_commands() -> void:
 				"Move party member(s) to x,z.", "pm_move <x> <z> [index]")
 	if not DebugConsole.has_command("pm_select"):
 		DebugConsole.register("pm_select", PartyMember._cmd_select,
-				"Toggle selection ring/label on a party member.", "pm_select <index>")
+				"Toggle a party member in/out of the selection (Party slot order).", "pm_select <index>")
 
 
 static func _members() -> Array[Node]:
@@ -147,12 +163,10 @@ static func _cmd_move(args: PackedStringArray) -> String:
 
 
 static func _cmd_select(args: PackedStringArray) -> String:
-	var members := _members()
 	if args.is_empty() or not args[0].is_valid_int():
 		return "Usage: pm_select <index>"
-	var i := args[0].to_int()
-	if i < 0 or i >= members.size():
-		return "No party member %d (have %d)." % [i, members.size()]
-	var m := members[i] as PartyMember
-	m.set_selected(not m.is_selected())
-	return "%s selected: %s" % [m.get_display_name(), m.is_selected()]
+	var m := Party.get_member(args[0].to_int())
+	if m == null:
+		return "No party member %s (have %d)." % [args[0], Party.members.size()]
+	Party.toggle(m)
+	return "%s selected: %s" % [m.get_display_name(), Party.is_selected(m)]
